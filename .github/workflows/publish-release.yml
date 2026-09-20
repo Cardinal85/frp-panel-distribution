@@ -1,0 +1,37 @@
+name: Publish staged distribution
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout staged distribution
+        uses: actions/checkout@v4
+
+      - name: Create GitHub releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$GITHUB_REF_NAME"
+          test -d "staging/$version"
+          gh release create "$version" staging/"$version"/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$version" \
+            --generate-notes
+          if gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload latest staging/"$version"/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create latest staging/"$version"/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "latest" \
+              --notes "Latest private build"
+          fi
